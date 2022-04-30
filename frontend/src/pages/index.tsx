@@ -1,14 +1,20 @@
 import axios from 'axios'
 import { useEffect, useState } from 'react'
 import type { NextPage } from 'next'
+import { Wrap, WrapItem, Button, Flex, Box, SimpleGrid } from '@chakra-ui/react'
 import Login from 'components/Login'
 import Logout from 'components/Logout'
-import styles from '../styles/Home.module.css'
+import VideoGridItem from 'components/VideoGridItem'
+import Video from 'types/Video'
+import PrivacyStatus from 'enums/PrivacyStatus'
+import VideoDetails from 'components/VideoDetails'
 
 let gapi
 
 const Home: NextPage = () => {
   const [accessToken, setAccessToken] = useState()
+  const [videos, setVideos] = useState<Video[]>([])
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
 
   useEffect(() => {
     async function initGapi() {
@@ -31,19 +37,46 @@ const Home: NextPage = () => {
     })
     const uploadsPlaylistId = channelRes.data.items[0].contentDetails.relatedPlaylists.uploads
     const videosRes = await axios(
-      `https://www.googleapis.com/youtube/v3/playlistItems?part=contentDetails,id,snippet&maxResults=50&playlistId=${uploadsPlaylistId}`,
+      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,status&maxResults=50&playlistId=${uploadsPlaylistId}`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
       }
     )
-    console.log(videosRes.data)
+    const vids = videosRes.data.items.map((v) => ({
+      id: v.snippet.resourceId.videoId,
+      publishedAt: v.snippet.publishedAt,
+      title: v.snippet.title,
+      description: v.snippet.description,
+      thumbnailUrl: `https://img.youtube.com/vi/${v.snippet.resourceId.videoId}/maxresdefault.jpg`,
+      channelId: v.snippet.channelId,
+      channelName: v.snippet.channelTitle,
+      privacyStatus: v.status.privacyStatus,
+    }))
+    setVideos(vids)
   }
 
   return (
-    <div className={styles.container}>
-      <Login onSuccess={() => setAccessToken(gapi.auth.getToken()?.access_token)} />
-      <button onClick={getChannels}>Get my channels</button>
-      <Logout />
+    <div>
+      <div>
+        <Login onSuccess={() => setAccessToken(gapi.auth.getToken()?.access_token)} />
+        <Button onClick={getChannels}>Get my channels</Button>
+        <Logout />
+      </div>
+
+      <Flex>
+        <SimpleGrid columns={3} spacing={4} w="70%">
+          {videos
+            .filter((v) => v.privacyStatus === PrivacyStatus.Public)
+            .map((v) => (
+              <WrapItem key={v.id}>
+                <VideoGridItem video={v} onClick={() => setSelectedVideo(v)} />
+              </WrapItem>
+            ))}
+        </SimpleGrid>
+        <Box w="30%" borderLeft="1px">
+          <VideoDetails video={selectedVideo} />
+        </Box>
+      </Flex>
     </div>
   )
 }
