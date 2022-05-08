@@ -13,7 +13,7 @@ export default function Login({ onSuccess }) {
   return (
     <div>
       <GoogleLogin
-        clientId={process.env.NODE_PUBLIC_OATH_CLIENT_ID!}
+        clientId={process.env.NEXT_PUBLIC_OAUTH_CLIENT_ID!}
         buttonText="Log in"
         onSuccess={handleSuccess}
         onFailure={handleFailure}

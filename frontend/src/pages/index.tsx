@@ -8,10 +8,13 @@ import VideoGridItem from 'components/VideoGridItem'
 import Video from 'types/Video'
 import PrivacyStatus from 'enums/PrivacyStatus'
 import VideoDetails from 'components/VideoDetails'
+import { useWeb3 } from 'context/Web3Context'
 
 let gapi
 
 const Home: NextPage = () => {
+  const { connectWallet, address } = useWeb3()
+
   const [accessToken, setAccessToken] = useState()
   const [videos, setVideos] = useState<Video[]>([])
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null)
@@ -35,29 +38,36 @@ const Home: NextPage = () => {
     const channelRes = await axios('https://www.googleapis.com/youtube/v3/channels?part=contentDetails&mine=true', {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
-    const uploadsPlaylistId = channelRes.data.items[0].contentDetails.relatedPlaylists.uploads
-    const videosRes = await axios(
-      `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,status&maxResults=50&playlistId=${uploadsPlaylistId}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }
-    )
-    const vids = videosRes.data.items.map((v) => ({
-      id: v.snippet.resourceId.videoId,
-      publishedAt: v.snippet.publishedAt,
-      title: v.snippet.title,
-      description: v.snippet.description,
-      thumbnailUrl: `https://img.youtube.com/vi/${v.snippet.resourceId.videoId}/maxresdefault.jpg`,
-      channelId: v.snippet.channelId,
-      channelName: v.snippet.channelTitle,
-      privacyStatus: v.status.privacyStatus,
-    }))
-    setVideos(vids)
+    if (channelRes.data.items?.length) {
+      const uploadsPlaylistId = channelRes.data.items[0].contentDetails.relatedPlaylists.uploads
+      const videosRes = await axios(
+        `https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,status&maxResults=50&playlistId=${uploadsPlaylistId}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }
+      )
+      const vids = videosRes.data.items.map((v) => ({
+        id: v.snippet.resourceId.videoId,
+        publishedAt: v.snippet.publishedAt,
+        title: v.snippet.title,
+        description: v.snippet.description,
+        thumbnailUrl: `https://img.youtube.com/vi/${v.snippet.resourceId.videoId}/maxresdefault.jpg`,
+        channelId: v.snippet.channelId,
+        channelName: v.snippet.channelTitle,
+        privacyStatus: v.status.privacyStatus,
+      }))
+      setVideos(vids)
+    }
+  }
+
+  function getTruncatedAddress(a) {
+    return a.substring(0, 6) + '...' + a.substring(a.length - 6, a.length)
   }
 
   return (
     <div>
       <div>
+        {address ? getTruncatedAddress(address) : <Button onClick={connectWallet}>Connect wallet</Button>}
         <Login onSuccess={() => setAccessToken(gapi.auth.getToken()?.access_token)} />
         <Button onClick={getChannels}>Get my channels</Button>
         <Logout />
